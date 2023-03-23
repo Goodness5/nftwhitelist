@@ -11,6 +11,10 @@ library libNftMint {
         bytes32[] storage arr = ds.proofs;
         arr.push(_proof);
     }
+    function passmerkleroot(bytes32 _root) internal {
+        NftData storage ds = storageSlot();
+        ds.merkleRoot = _root;
+    }
 
     function mint() internal {
         NftData storage ds = storageSlot();
@@ -23,9 +27,9 @@ library libNftMint {
     function checkValidity() public view returns (bool) {
         NftData storage ds = storageSlot();
         bytes32 root = ds.merkleRoot;
-        bytes32[] memory _merkleProof = ds.proofs;
+        bytes32[] memory proof =  ds.proof[msg.sender];
         bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
-        require(MerkleProof.verify(_merkleProof, root, leaf), "Incorrect proof");
+        require(MerkleProof.verify(proof, root, leaf), "Incorrect proof");
         return true;
     }
 
@@ -64,6 +68,26 @@ library libNftMint {
         // Clear approvals from the previous owner
         delete ds._tokenApprovals[tokenId];
         ds._owners[tokenId] = to;
+    }
+
+     function _approve(address to, uint256 tokenId) internal  {
+          NftData storage ds = storageSlot();
+        ds._tokenApprovals[tokenId] = to;
+    }
+     function getApproved(uint256 tokenId) internal view  returns (address) {
+         NftData storage ds = storageSlot();
+
+        return ds._tokenApprovals[tokenId];
+    }
+
+    function _isApprovedOrOwner(address spender, uint256 tokenId) internal view  returns (bool) {
+        address owner = ownerOf(tokenId);
+        return (spender == owner || getApproved(tokenId) == spender);
+    }
+    function transferFrom(address from, address to, uint256 tokenId) public {
+                  NftData storage ds = storageSlot();
+        require(_isApprovedOrOwner(msg.sender, tokenId), "ERC721: caller is not token owner or approved");
+        _transfer(from, to, tokenId);
     }
 
 }
